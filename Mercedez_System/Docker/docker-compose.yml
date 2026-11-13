@@ -1,0 +1,53 @@
+# ============================================================
+# Docker Compose — Sistema de Citas Barbería Mercedes (Monolito)
+# Desde carpeta docker/: docker-compose up -d
+# ============================================================
+
+services:
+
+  db-barberia:
+    image: postgres:16-alpine
+    container_name: db-barberia
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: db_barberia
+      POSTGRES_USER: ${DB_USER:-barberia}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-barberia123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-barberia-data:/var/lib/postgresql/data
+    networks:
+      - barberia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-barberia} -d db_barberia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app-barberia:
+    build: ..
+    container_name: app-barberia
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-barberia:5432/db_barberia
+      DB_USER: ${DB_USER:-barberia}
+      DB_PASSWORD: ${DB_PASSWORD:-barberia123}
+      JWT_SECRET: ${JWT_SECRET:-miClaveSecretaSuperSegura2026}
+      CULQI_PUBLIC_KEY: ${CULQI_PUBLIC_KEY}
+      CULQI_SECRET_KEY: ${CULQI_SECRET_KEY}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+    depends_on:
+      db-barberia:
+        condition: service_healthy
+    networks:
+      - barberia-network
+
+volumes:
+  db-barberia-data:
+
+networks:
+  barberia-network:
+    driver: bridge
